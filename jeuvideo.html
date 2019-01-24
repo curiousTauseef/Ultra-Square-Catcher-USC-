@@ -35,7 +35,6 @@
       //variables
       score = 0
       var best = 0
-      var vitesseEnnemi = 0
       var spawn = 0
       var powerUpSpeed = 0.3
       var lastTime = 0
@@ -47,6 +46,7 @@
       var FRICTION = 0.95
       var BRAKE = 0.2
       var ADAPTATION_ENNEMI = 270
+      var ADAPTATION_THIEF = 270
       var ORIENTATION_NERF = 0.0005
 
       var ennemi = {
@@ -54,6 +54,15 @@
         y: canvas.height / 2,
         width: 15 * ratio,
         height: 15 * ratio,
+        vitesse: 0,
+      }
+
+      var thief = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        width: 30 * ratio,
+        height: 30 * ratio,
+        vitesse: 0
       }
 
       var hero = {
@@ -72,8 +81,8 @@
       }
 
       var reward = {
-        x: 100,
-        y: 100,
+        x: 60,
+        y: 60,
         width: 20 * ratio,
         height: 20 * ratio,
       }
@@ -86,9 +95,12 @@
         speed: 0.3
       }
 
-      //distance
+      //ennemy finding target
       function distance(hy, hx, ey, ex) {
         return Math.sqrt(Math.pow(hy - ey, 2) + Math.pow(hx - ex, 2))
+      }
+      function direction(target, ennemi, vitesse, norme) {
+        return (target-ennemi) * vitesse / norme
       }
 
       function update(currentTime) {
@@ -96,17 +108,26 @@
         lastTime = currentTime
 
         dt = Math.min(dt, 400) //choses qui bougent
-        var norme = distance(hero.y, hero.x, ennemi.y, ennemi.x)
-
 
         //ennemi
-        var vy = (hero.y - ennemi.y) * vitesseEnnemi / norme
-        var vx = (hero.x - ennemi.x) * vitesseEnnemi / norme
+        var norme = distance(hero.y, hero.x, ennemi.y, ennemi.x)
+        var vy = direction(hero.y, ennemi.y, ennemi.vitesse,norme)
+        var vx = direction(hero.x, ennemi.x, ennemi.vitesse, norme)
 
         if (score >= 10) {
           ennemi.y += vy * dt
           ennemi.x += vx * dt
-          vitesseEnnemi = score / ADAPTATION_ENNEMI
+          ennemi.vitesse = score / ADAPTATION_ENNEMI
+        }
+        //thief
+        var thiefNorme = distance (reward.y, hero.x, reward.x, hero.y)
+        var vty = direction(reward.y, thief.y, thief.vitesse, thiefNorme)
+        var vtx = direction(reward.x, thief.x, thief.vitesse, thiefNorme)
+        
+        if (score >= 0) {
+          thief.y += vty * dt
+          thief.x += vtx * dt
+          thief.vitesse = score / ADAPTATION_THIEF
         }
 
         //acceleration
@@ -149,13 +170,26 @@
             spawn = Math.random()
           }
         }
-        if (score >= 10) {
+        if (score >= 10) { //ennemy
           if (collision(ennemi, hero)) {
             score -= Math.round(score / 10)
             ennemi.x = canvas.width / 2
             ennemi.y = canvas.height / 2
             hero.x = 1
             hero.y = 1
+          }
+        }
+        if (score >= 60) { //thief
+          if (collision(thief, hero)) {
+            score -= 10
+            thief.x = canvas.width / 2
+            thief.y = canvas.height / 2
+            hero.x = 1
+            hero.y = 1
+          }
+          if (collision(thief, reward)) {
+          reward.x = Math.random() * (canvas.width - reward.width)
+          reward.y = Math.random() * (canvas.height - reward.height)
           }
         }
         if (spawn > PowerUpspawnRate) {
@@ -191,9 +225,13 @@
         ctx.fillStyle = '#0099FF' //bright blue reward
         ctx.fillRect(reward.x, reward.y, reward.width, reward.height)
 
-        if (score >= 10) {
+        if (score >= 10) { //ennemy
           ctx.fillStyle = 'red'
           ctx.fillRect(ennemi.x, ennemi.y, ennemi.width, ennemi.height) //ennemy
+        }
+        if (score >= 0) { //thief
+          ctx.fillStyle = '#ff6699' //pink
+          ctx.fillRect(thief.x, thief.y, thief.width, thief.height) //ennemy
         }
         if (spawn > PowerUpspawnRate) {
           ctx.fillStyle = 'cyan'
